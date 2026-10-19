@@ -18,6 +18,7 @@ public sealed class ImageEngine : IDisposable
     private readonly Dictionary<int, CanvasRenderTarget> mosaics = [];
     public int Width => (int)original.SizeInPixels.Width;
     public int Height => (int)original.SizeInPixels.Height;
+    internal long EstimatedMemoryBytes => (long)Width * Height * 4 * (1 + mosaics.Count);
     private Rect Bounds => new(0, 0, Width, Height);
 
     private ImageEngine(CanvasDevice device, CanvasBitmap original) { this.device = device; this.original = original; }
@@ -33,6 +34,9 @@ public sealed class ImageEngine : IDisposable
         using var bitmap = await decoder.GetSoftwareBitmapAsync(BitmapPixelFormat.Bgra8,
             BitmapAlphaMode.Premultiplied, new BitmapTransform(),
             ExifOrientationMode.RespectExifOrientation, ColorManagementMode.ColorManageToSRgb);
+        // CreateFromSoftwareBitmap inherits source DPI. All edit geometry uses
+        // image pixels, so neutralize metadata without resampling pixel data.
+        bitmap.DpiX = bitmap.DpiY = 96;
         return new ImageEngine(device, CanvasBitmap.CreateFromSoftwareBitmap(device, bitmap));
     }
 
@@ -126,6 +130,7 @@ public sealed class ImageEngine : IDisposable
     public CanvasRenderTarget Render(IEnumerable<Stroke> strokes)
     {
         var result = Target();
+        CanvasRenderTarget? snapshot = null;
         try
         {
             using (var drawing = result.CreateDrawingSession()) { drawing.Clear(Colors.Transparent); drawing.DrawImage(original); }
@@ -135,9 +140,15 @@ public sealed class ImageEngine : IDisposable
                 using var mask = Mask(stroke);
                 bool solid = stroke.Tool is MarkTool.Solid or MarkTool.Line;
                 bool blur = stroke.Tool == MarkTool.Blur || (stroke.Tool == MarkTool.Lasso && stroke.LassoBlur);
-                // Read the completed previous canvas, never sample an active render target.
-                using var snapshot = blur ? CanvasBitmap.CreateFromBytes(device, result.GetPixelBytes(), Width, Height,
-                    DirectXPixelFormat.B8G8R8A8UIntNormalized) : null;
+                // Copy the previous result on the GPU. Reuse one scratch target
+                // instead of synchronously reading/uploading the entire bitmap per blur.
+                if (blur)
+                {
+                    snapshot ??= Target();
+                    using var copy = snapshot.CreateDrawingSession();
+                    copy.Blend = CanvasBlend.Copy;
+                    copy.DrawImage(result);
+                }
                 using var effect = blur ? new GaussianBlurEffect
                 {
                     Source = snapshot, BlurAmount = Math.Clamp(stroke.BlurRadius, 2, 60), BorderMode = EffectBorderMode.Hard
@@ -157,12 +168,46 @@ public sealed class ImageEngine : IDisposable
             return result;
         }
         catch { result.Dispose(); throw; }
+        finally { snapshot?.Dispose(); }
     }
 
     public async Task ExportAsync(Photo photo, string path)
     {
         using var output = Render(photo.Strokes);
         await output.SaveAsync(path, CanvasBitmapFileFormat.Png);
+    }
+
+    internal CanvasRenderTarget RenderStroke(CanvasRenderTarget committed, Stroke stroke, CanvasRenderTarget? reusable = null)
+    {
+        var result = reusable ?? Target();
+        try
+        {
+            using (var copy = result.CreateDrawingSession())
+            {
+                copy.Blend = CanvasBlend.Copy;
+                copy.DrawImage(committed);
+            }
+            if (stroke.Points.Count == 0 || stroke.Tool == MarkTool.Lasso && stroke.Points.Count < 3) return result;
+            using var mask = Mask(stroke);
+            bool solid = stroke.Tool is MarkTool.Solid or MarkTool.Line;
+            bool blur = stroke.Tool == MarkTool.Blur || stroke.Tool == MarkTool.Lasso && stroke.LassoBlur;
+            using var effect = blur ? new GaussianBlurEffect
+            {
+                Source = committed, BlurAmount = Math.Clamp(stroke.BlurRadius, 2, 60), BorderMode = EffectBorderMode.Hard
+            } : null;
+            var mosaic = !solid && !blur ? Mosaic(stroke.Block) : null;
+            using var drawing = result.CreateDrawingSession();
+            using var layer = drawing.CreateLayer(solid ? Math.Clamp(stroke.Opacity, 0, 1) : 1, mask);
+            if (solid) drawing.FillRectangle(Bounds, Windows.UI.Color.FromArgb(255, stroke.Red, stroke.Green, stroke.Blue));
+            else
+            {
+                drawing.Blend = CanvasBlend.Copy;
+                if (blur) drawing.DrawImage(effect!, Bounds, Bounds);
+                else drawing.DrawImage(mosaic!, Bounds, Bounds);
+            }
+            return result;
+        }
+        catch { if (reusable is null) result.Dispose(); throw; }
     }
 
     public void Dispose()

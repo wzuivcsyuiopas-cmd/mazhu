@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.UI.Xaml.Media.Imaging;
 
 namespace Mazhu;
 
@@ -34,7 +35,16 @@ public sealed class Photo : INotifyPropertyChanged
     public List<Stroke> Redo { get; set; } = [];
     public bool Done { get; set; }
     [JsonIgnore] public string Description => $"{Width} × {Height} · {(Done ? "已确认" : "待处理")}";
+    [JsonIgnore] public double ThumbnailWidth => 56.0 * Width / Math.Max(1, Math.Max(Width, Height));
+    [JsonIgnore] public double ThumbnailHeight => 56.0 * Height / Math.Max(1, Math.Max(Width, Height));
+    private BitmapImage? thumbnail;
+    [JsonIgnore] public BitmapImage Thumbnail => thumbnail ??= new BitmapImage
+    {
+        DecodePixelWidth = 128,
+        UriSource = new Uri(Path.Combine(Workspace.Originals, StoredName))
+    };
     public event PropertyChangedEventHandler? PropertyChanged;
+    public override string ToString() => $"{Name}，{Description}";
     public void Refresh() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Description)));
 }
 
@@ -43,7 +53,8 @@ public sealed class Workspace
     public int Version { get; set; } = 1;
     public ObservableCollection<Photo> Photos { get; set; } = [];
     public Guid? Selection { get; set; }
-    [JsonIgnore] public static string Root => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Mazhu");
+    [JsonIgnore] public static string Root => UiChecks.Enabled ? UiChecks.Root
+        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Mazhu");
     [JsonIgnore] public static string Originals => Path.Combine(Root, "Originals");
     private static string Session => Path.Combine(Root, "workspace.json");
 
