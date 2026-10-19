@@ -11,3 +11,5 @@ workspace.json
 Originals/
 *.xcuserstate
 xcuserdata/
+**/bin/
+**/obj/
