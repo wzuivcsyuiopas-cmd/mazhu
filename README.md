@@ -6,7 +6,7 @@
 
 [下载最新版本](https://github.com/wzuivcsyuiopas-cmd/mazhu/releases/latest) · [GPL-3.0 许可证](LICENSE)
 
-Windows 原生版已建立 [WinUI 3 / Win2D 源码](windows/README.md)，已通过 Windows 11 x64 编译和自动渲染检查，完整交互验收仍在进行；当前下载发行版仍为 macOS 版。
+Windows 原生版使用 [WinUI 3 / Win2D](windows/README.md)。正式 Release 提供 macOS DMG 和 Windows x64 安装 EXE；Actions 页面上的临时构建产物不等于正式发行包。
 
 ## 功能
 
@@ -20,7 +20,9 @@ Windows 原生版已建立 [WinUI 3 / Win2D 源码](windows/README.md)，已通�
 
 ## 系统要求
 
-当前发行版面向 **Apple Silicon Mac，macOS 26 或更高版本**。部分 macOS 27 玻璃交互使用运行时能力检测，在较早版本上采用可用的原生控件行为。
+macOS 版面向 **Apple Silicon Mac，macOS 26 或更高版本**；Windows 版面向 **Windows 11 x64**。部分 macOS 27 玻璃交互使用运行时能力检测，在较早版本上采用可用的原生控件行为。
+
+macOS 下载 DMG 后，将“码住”拖到 Applications。Windows 下载 EXE 后运行安装，从开始菜单打开“码住”，无需另装 .NET 或 Windows App SDK。
 
 下载的 App 使用临时签名（ad-hoc），未经过 Apple Developer ID 签名或公证。首次运行可能被 Gatekeeper 拦截；也可以从源码自行构建。
 
@@ -61,6 +63,10 @@ open dist/码住.app
 默认中间文件位于 `.build-local/`，App 位于 `dist/码住.app`。可通过 `TUMA_BUILD_DIR`、`TUMA_APP_PATH` 覆盖路径。`Package.swift` 可用于在 Xcode 中浏览和开发；生成完整 App 包请使用构建脚本。
 
 `check.sh` 在独立临时目录使用自动生成的图片，检查渲染、历史恢复、剪贴板、批量操作、导出和部分 AppKit 行为，不读取用户工作区。
+
+## 发布
+
+在 GitHub Actions 中运行 **Release packages**。流程从同一提交构建并验证 macOS DMG 和 Windows x64 安装 EXE，两者成功后才一起发布对应版本的 Release；校验值写在发行说明中。macOS 与 Windows 的项目版本必须一致，新版本需同步更新 `Info.plist`、Windows 项目版本和 `docs/releases/v版本号.md`。
 
 ## 本地数据
 

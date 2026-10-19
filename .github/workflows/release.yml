@@ -1,0 +1,91 @@
+name: Release packages
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/release.yml'
+      - 'scripts/package-*'
+      - 'packaging/**'
+      - 'Info.plist'
+      - 'windows/Mazhu/Mazhu.csproj'
+permissions:
+  contents: read
+jobs:
+  macos:
+    runs-on: macos-26
+    timeout-minutes: 20
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: version
+        run: echo "version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Info.plist)" >> "$GITHUB_OUTPUT"
+      - name: Build and verify macOS DMG
+        run: zsh ./scripts/package-macos.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-macos
+          path: release/*.dmg
+          if-no-files-found: error
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 25
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - id: version
+        shell: pwsh
+        run: |
+          [xml]$project = Get-Content windows/Mazhu/Mazhu.csproj -Raw
+          "version=$($project.Project.PropertyGroup.Version)" >> $env:GITHUB_OUTPUT
+      - name: Build and verify Windows x64 installer
+        shell: pwsh
+        run: ./scripts/package-windows.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: release/*.exe
+          if-no-files-found: error
+  publish:
+    if: github.event_name == 'workflow_dispatch'
+    needs: [macos, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      MAC_VERSION: ${{ needs.macos.outputs.version }}
+      WIN_VERSION: ${{ needs.windows.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: release
+          merge-multiple: true
+      - name: Publish both verified packages together
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$MAC_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ && "$MAC_VERSION" == "$WIN_VERSION" ]]
+          tag="v$MAC_VERSION"
+          files=("release/Mazhu-$MAC_VERSION-macOS-arm64.dmg" "release/Mazhu-$WIN_VERSION-windows-x64.exe")
+          [[ -f "${files[0]}" && -f "${files[1]}" ]]
+          existing_commit=$(gh api "repos/$GITHUB_REPOSITORY/commits/$tag" --jq .sha 2>/dev/null || true)
+          [[ -z "$existing_commit" || "$existing_commit" == "$GITHUB_SHA" ]]
+          cp "docs/releases/$tag.md" release-notes.md
+          printf '\n### SHA-256\n\n```text\n' >> release-notes.md
+          sha256sum "${files[@]}" >> release-notes.md
+          printf '```\n' >> release-notes.md
+          if gh release view "$tag" --json isDraft --jq .isDraft > existing-draft.txt 2>/dev/null; then
+            [[ "$(cat existing-draft.txt)" == true ]]
+            gh release upload "$tag" "${files[@]}" --clobber
+          else
+            gh release create "$tag" "${files[@]}" --target "$GITHUB_SHA" --title "码住 $tag" --notes-file release-notes.md --draft
+          fi
+          [[ "$(gh release view "$tag" --json assets --jq '.assets | length')" == 2 ]]
+          gh release edit "$tag" --notes-file release-notes.md --draft=false --latest

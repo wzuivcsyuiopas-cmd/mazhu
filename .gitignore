@@ -13,3 +13,4 @@ Originals/
 xcuserdata/
 **/bin/
 **/obj/
+/release/
