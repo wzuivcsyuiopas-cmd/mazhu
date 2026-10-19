@@ -17,7 +17,7 @@ hdiutil create -volname '码住' -srcfolder "$TASK_STAGE" -format UDZO -ov "$TAS
 hdiutil verify "$TASK_DMG"
 hdiutil attach -readonly -nobrowse -mountpoint "$TASK_MOUNT" "$TASK_DMG"
 codesign --verify --deep --strict "$TASK_MOUNT/码住.app"
-lipo -verify_arch arm64 "$TASK_MOUNT/码住.app/Contents/MacOS/TuMa"
+lipo "$TASK_MOUNT/码住.app/Contents/MacOS/TuMa" -verify_arch arm64
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$TASK_MOUNT/码住.app/Contents/Info.plist")" == "$TASK_VERSION" ]]
 [[ "$(readlink "$TASK_MOUNT/Applications")" == /Applications ]]
 print "$TASK_DMG"
