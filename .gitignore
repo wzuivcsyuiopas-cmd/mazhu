@@ -1,0 +1,13 @@
+.DS_Store
+.build/
+.build-local/
+dist/
+*.app/
+*.dSYM/
+.env
+.env.*
+!.env.example
+workspace.json
+Originals/
+*.xcuserstate
+xcuserdata/

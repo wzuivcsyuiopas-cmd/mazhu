@@ -1,0 +1,70 @@
+{
+  "name": "Grid-7x7",
+  "background": {
+    "colors": [
+      "#ffffff",
+      "#ffffff"
+    ]
+  },
+  "layers": [
+    {
+      "name": "White outside lens",
+      "src": "outside.svg",
+      "liquidGlass": {
+        "enabled": false
+      }
+    },
+    {
+      "name": "Circular glass",
+      "src": "lens.svg",
+      "liquidGlass": {
+        "enabled": true,
+        "specular": true,
+        "specularIntensity": 100,
+        "refraction": {
+          "enabled": true
+        },
+        "blur": {
+          "enabled": false
+        },
+        "translucency": {
+          "enabled": true,
+          "value": 100
+        },
+        "shadow": {
+          "enabled": false
+        },
+        "aberration": 45,
+        "effects": {
+          "refraction": 70,
+          "bevel": 6,
+          "frostiness": 0
+        }
+      }
+    },
+    {
+      "name": "Flat grayscale 7x7",
+      "src": "mosaic.svg",
+      "liquidGlass": {
+        "enabled": false
+      }
+    }
+  ],
+  "outputs": [
+    {
+      "sizes": [
+        1024,
+        512,
+        256,
+        128,
+        64,
+        32,
+        16
+      ],
+      "modes": [
+        "default"
+      ],
+      "format": "png"
+    }
+  ]
+}

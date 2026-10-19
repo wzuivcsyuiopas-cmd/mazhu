@@ -1,0 +1,19 @@
+name: Build and check
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  macos:
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Core checks
+        run: ./scripts/check.sh
+      - name: Build app
+        run: ./scripts/build.sh
+      - name: Verify signature
+        run: codesign --verify --deep --strict dist/码住.app
