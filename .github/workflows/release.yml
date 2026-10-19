@@ -75,7 +75,7 @@ jobs:
           tag="v$MAC_VERSION"
           files=("release/Mazhu-$MAC_VERSION-macOS-arm64.dmg" "release/Mazhu-$WIN_VERSION-windows-x64.exe")
           [[ -f "${files[0]}" && -f "${files[1]}" ]]
-          existing_commit=$(gh api "repos/$GITHUB_REPOSITORY/commits/$tag" --jq .sha 2>/dev/null || true)
+          if ! existing_commit=$(gh api "repos/$GITHUB_REPOSITORY/commits/$tag" --jq .sha 2>/dev/null); then existing_commit=""; fi
           [[ -z "$existing_commit" || "$existing_commit" == "$GITHUB_SHA" ]]
           cp "docs/releases/$tag.md" release-notes.md
           printf '\n### SHA-256\n\n```text\n' >> release-notes.md
