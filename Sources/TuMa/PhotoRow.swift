@@ -35,4 +35,3 @@ struct PhotoRow: View {
             .accessibilityLabel("分辨率 \(photo.width) 乘 \(photo.height) 像素")
     }
 }
-
