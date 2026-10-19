@@ -1,0 +1,95 @@
+<Window x:Class="Mazhu.MainWindow"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:local="using:Mazhu"
+ xmlns:canvas="using:Microsoft.Graphics.Canvas.UI.Xaml"
+ Title="码住">
+  <Grid x:Name="Root" AllowDrop="True" DragOver="OnDragOver" Drop="OnDrop" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+    <CommandBar x:Name="Commands" DefaultLabelPosition="Right" IsOpen="False">
+      <CommandBar.Content><TextBlock Text="码住" Style="{ThemeResource SubtitleTextBlockStyle}" Margin="20,10" /></CommandBar.Content>
+      <AppBarButton Label="导入" Icon="Add" Click="ImportClick" ToolTipService.ToolTip="导入图片 (Ctrl+O)" />
+      <AppBarButton Label="粘贴" Icon="Paste" Click="PasteClick" ToolTipService.ToolTip="粘贴图片 (Ctrl+V)" />
+      <AppBarSeparator />
+      <AppBarButton Label="撤销" Icon="Undo" Click="UndoClick" />
+      <AppBarButton Label="重做" Icon="Redo" Click="RedoClick" />
+      <AppBarButton Label="导出已确认" Icon="Save">
+        <AppBarButton.Flyout>
+          <MenuFlyout><MenuFlyoutItem Text="导出 PNG 到文件夹…" Click="ExportFolderClick" /><MenuFlyoutItem Text="导出 ZIP…" Click="ExportZipClick" /></MenuFlyout>
+        </AppBarButton.Flyout>
+      </AppBarButton>
+    </CommandBar>
+    <Grid Grid.Row="1" x:Name="Editor">
+      <Grid.ColumnDefinitions><ColumnDefinition Width="240" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+      <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
+        <Grid>
+          <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+          <TextBlock x:Name="CountLabel" Text="图片" Margin="20,16" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+          <ListView x:Name="PhotoList" Grid.Row="1" SelectionMode="Single" SelectionChanged="SelectionChanged" AutomationProperties.Name="图片列表">
+            <ListView.ItemTemplate>
+              <DataTemplate x:DataType="local:Photo">
+                <StackPanel Margin="4,8" Spacing="6">
+                  <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Text="{x:Bind Description, Mode=OneWay}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+              </DataTemplate>
+            </ListView.ItemTemplate>
+          </ListView>
+        </Grid>
+      </Border>
+      <Grid Grid.Column="1">
+        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+        <ScrollViewer HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Auto" VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled">
+          <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,12">
+            <ComboBox x:Name="Tools" Header="工具" SelectedIndex="0" MinWidth="126">
+              <ComboBoxItem Content="马赛克" /><ComboBoxItem Content="画笔" /><ComboBoxItem Content="圈选" /><ComboBoxItem Content="直线" /><ComboBoxItem Content="高斯模糊" />
+            </ComboBox>
+            <Slider x:Name="Diameter" Header="笔刷大小" Minimum="2" Maximum="240" Value="48" Width="120" />
+            <Slider x:Name="BlockSize" Header="马赛克颗粒" Minimum="2" Maximum="100" Value="24" Width="120" />
+            <Slider x:Name="BlurRadius" Header="模糊强度" Minimum="2" Maximum="60" Value="16" Width="120" />
+            <Button Content="更多参数" VerticalAlignment="Bottom">
+              <Button.Flyout>
+                <Flyout>
+                  <StackPanel Spacing="12" Width="280">
+                    <CheckBox x:Name="SquareBrush" Content="方形笔刷" />
+                    <CheckBox x:Name="LassoBlur" Content="圈选填充高斯模糊" />
+                    <Slider x:Name="Opacity" Header="画笔／直线不透明度" Minimum="0.05" Maximum="1" Value="1" />
+                    <ColorPicker x:Name="Ink" Color="Black" IsAlphaEnabled="False" IsAlphaSliderVisible="False" IsAlphaTextInputVisible="False" IsColorChannelTextInputVisible="False" />
+                  </StackPanel>
+                </Flyout>
+              </Button.Flyout>
+            </Button>
+          </StackPanel>
+        </ScrollViewer>
+        <Grid Grid.Row="1" Background="{ThemeResource LayerFillColorAltBrush}">
+          <canvas:CanvasControl x:Name="Canvas" CreateResources="CreateResources" Draw="Draw" SizeChanged="CanvasSizeChanged"
+            PointerPressed="PointerPressed" PointerMoved="PointerMoved" PointerReleased="PointerReleased"
+            PointerCaptureLost="PointerCaptureLost" PointerCanceled="PointerCanceled" PointerWheelChanged="PointerWheelChanged"
+            KeyDown="CanvasKeyDown" IsTabStop="True" AutomationProperties.Name="图片打码画布" />
+          <StackPanel x:Name="EmptyState" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="14" IsHitTestVisible="False">
+            <FontIcon Glyph="&#xEB9F;" FontSize="48" />
+            <TextBlock Text="导入图片，直接涂抹" Style="{ThemeResource SubtitleTextBlockStyle}" HorizontalAlignment="Center" />
+            <TextBlock Text="拖入图片，或按 Ctrl+V 粘贴" HorizontalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          </StackPanel>
+        </Grid>
+        <Grid Grid.Row="2" Padding="16,12" ColumnSpacing="12">
+          <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="适应窗口" Click="FitClick" /><Button Content="100%" Click="ActualClick" />
+            <TextBlock x:Name="ZoomLabel" VerticalAlignment="Center" Text="Ctrl+滚轮缩放 · 中键拖动画布" Style="{ThemeResource CaptionTextBlockStyle}" />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+            <Button Content="上一张" Click="PreviousClick" /><Button Content="下一张" Click="NextClick" />
+            <Button Content="确认并下一张" Style="{ThemeResource AccentButtonStyle}" Click="DoneClick" />
+          </StackPanel>
+        </Grid>
+      </Grid>
+    </Grid>
+    <InfoBar Grid.Row="2" x:Name="Status" IsOpen="True" IsClosable="True" Severity="Informational" Message="图片仅在本机处理" />
+    <Grid Grid.RowSpan="3" x:Name="BusyOverlay" Visibility="Collapsed" Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}">
+      <ProgressRing IsActive="True" Width="48" Height="48" HorizontalAlignment="Center" VerticalAlignment="Center" />
+    </Grid>
+  </Grid>
+</Window>

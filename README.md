@@ -6,6 +6,8 @@
 
 [下载最新版本](https://github.com/wzuivcsyuiopas-cmd/mazhu/releases/latest) · [GPL-3.0 许可证](LICENSE)
 
+Windows 原生版已建立 [WinUI 3 / Win2D 初版源码](windows/README.md)，尚待 Windows 编译和实机验证；当前下载发行版仍为 macOS 版。
+
 ## 功能
 
 - 批量导入图片、拖入文件，或用 **⌘V** 粘贴图片。

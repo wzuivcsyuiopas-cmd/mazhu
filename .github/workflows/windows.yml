@@ -1,0 +1,32 @@
+name: Windows native build
+on:
+  workflow_dispatch:
+  push:
+    paths: ['windows/**', '.github/workflows/windows.yml']
+  pull_request:
+    paths: ['windows/**', '.github/workflows/windows.yml']
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        architecture: [x64, ARM64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Publish native app
+        shell: pwsh
+        run: |
+          $parameters = @{ Architecture = '${{ matrix.architecture }}' }
+          if ('${{ matrix.architecture }}' -eq 'x64') { $parameters.Check = $true }
+          ./windows/build.ps1 @parameters
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Mazhu-Windows-${{ matrix.architecture }}
+          path: windows/dist/${{ matrix.architecture }}/
